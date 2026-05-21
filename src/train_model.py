@@ -35,3 +35,24 @@ y_proba = model.predict_proba(X_test_scaled)[:, 1]
 # Оценка качества
 print(f"Accuracy: {accuracy_score(y_test, y_pred):.3f}")
 print(f"ROC-AUC: {roc_auc_score(y_test, y_proba):.3f}")
+
+# Получаем названия признаков
+feature_names = X_train.columns
+
+# Получаем коэффициенты модели
+coefficients = model.coef_[0]
+
+# Сортируем и выводим топ-5 самых влиятельных признаков
+coeff_df = pd.DataFrame({'feature': feature_names, 'coef': coefficients})
+coeff_df['abs_coef'] = coeff_df['coef'].abs()
+coeff_df = coeff_df.sort_values('abs_coef', ascending=False)
+
+print("\n=== Top 5 most important features for churn prediction ===")
+print(coeff_df.head(5))
+
+# import joblib
+#
+# # Сохраняем модель и scaler
+# joblib.dump(model, '../models/churn_model.pkl')
+# joblib.dump(scaler, '../models/scaler.pkl')
+# print("Model and scaler saved successfully!")
