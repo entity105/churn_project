@@ -31,4 +31,4 @@ print(f"ROC-AUC: {roc_auc_score(y_test, y_proba):.3f}")
 
 import joblib
 joblib.dump(model, '../models/churn_model.pkl')
-joblib.dump(model, '../models/scaler.pkl')
+joblib.dump(scaler, '../models/scaler.pkl')
