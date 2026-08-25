@@ -11,7 +11,7 @@ st.title("📉 Предсказание оттока клиента")
 st.write("Введите данные о клиенте и узнайте, уйдёт он или останется")
 
 # Ввод данных
-tenure = st.number_input("Длительность обслуживания (месяцев)", 0, 72, 12)
+tenure = st.number_input("Длительность обслуживания (месяцев)", -100, 72, 12)
 monthly_charges = st.number_input("Ежемесячный платёж ($)", 0.0, 200.0, 70.0)
 total_charges = tenure * monthly_charges
 contract = st.selectbox("Тип контракта", ["Month-to-month", "One year", "Two year"])
@@ -26,17 +26,21 @@ if st.button("🔮 Предсказать отток"):
         'Contract': contract,
         'InternetService': internet_service
     }])
+    # print(f"input_data:\n{input_data}")
 
     # One-Hot Encoding
-    input_encoded = pd.get_dummies(input_data, drop_first=True)
+    input_encoded = pd.get_dummies(input_data, dtype=int)
+    # print(f"input_encoded:\n{input_encoded}")
 
     # Жёстко задаём правильный порядок колонок (такой же, как при обучении)
     expected_columns = [
         'tenure',
         'MonthlyCharges',
         'TotalCharges',
+        'Contract_Month-to-month',
         'Contract_One year',
         'Contract_Two year',
+        'InternetService_DSL',
         'InternetService_Fiber optic',
         'InternetService_No'
     ]
@@ -45,15 +49,19 @@ if st.button("🔮 Предсказать отток"):
     for col in expected_columns:
         if col not in input_encoded.columns:
             input_encoded[col] = 0
+    # print(f"input_encoded2:\n{input_encoded}")
 
-    # Убираем лишние колонки и приводим к нужному порядку
     input_encoded = input_encoded[expected_columns]
+    # print(f'input_data:\n{input_data}\n\n')
+    # print(f'input_encoded3:\n{input_encoded}\n\n')
 
     # Масштабируем
     input_scaled = scaler.transform(input_encoded)
+    # print(f'input_scaled:\n{input_scaled}\n\n')
 
     # Предсказываем
     proba = model.predict_proba(input_scaled)[0][1]
+    print(proba, end='\n\n')
 
     if proba > 0.5:
         st.error(f"⚠️ Клиент **уйдёт** с вероятностью {proba:.1%}")
