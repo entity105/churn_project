@@ -1,34 +1,200 @@
+import numpy as np
 import pandas as pd
+import os
+import joblib
+
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-df = pd.read_csv('../data/Telco-Customer-Churn_clean.csv')
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 
-select = ['tenure', 'MonthlyCharges', 'TotalCharges', 'Contract', 'InternetService']
-X = df[select]
-y = df['Churn']
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(BASE_DIR, '..', 'models')
 
-X = pd.get_dummies(X, dtype=int)
+class CreateFitModel:
+    """Создаёт, обучает, сохраняет модель. На вход подаётся путь к файлу с данными"""
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+    def __init__(self, path_to_csv:str):
+        self.path = path_to_csv
 
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+        self.df_data = self.__parse_data()
+        self.scaler = self.load_model("scaler")
 
-model = LogisticRegression(max_iter=1000)
-model.fit(X_train_scaled, y_train)
+        self.metrics = pd.DataFrame(columns=['models', 'models_name', 'accuracy', 'ROC-AUC'])
 
-# Предсказания
-y_pred = model.predict(X_test_scaled)
-y_proba = model.predict_proba(X_test_scaled)[:, 1]
+    def fit_all_models(self, exclude=()):
+        """Вызывает все методы, оканчивающиеся на '_fit' и не содержащиеся в exclude """
+        methods_names = [m for m in dir(self)
+                         if callable(getattr(self, m)) and
+                         m.endswith('_fit') and
+                         m not in exclude]
 
-# Оценка качества
-print(f"Accuracy: {accuracy_score(y_test, y_pred):.3f}")
-print(f"ROC-AUC: {roc_auc_score(y_test, y_proba):.3f}")
+        for method_name in methods_names:
+            print(f"Обучение {method_name}...")
+            method = getattr(self, method_name)
+            try:
+                method()
+            except Exception as e:
+                print(f"Ошибка в {method_name}: {e}")
+                raise
+        print("Обучение завершено !")
+        self.save_model(self.metrics, "Метрики качества")
 
-import joblib
-joblib.dump(model, '../models/churn_model.pkl')
-joblib.dump(scaler, '../models/scaler.pkl')
+    def __parse_data(self, *args, **kwargs):
+        """Читает csv и сохраняет df"""
+        return pd.read_csv(self.path, *args, **kwargs)
+
+    def fit_model(self, file_name:str, model):
+        """Обучение, тестирование и сохранение модели"""
+        new_row = pd.DataFrame([[model, file_name]], columns=['models', 'models_name'])
+        self.metrics = pd.concat([self.metrics, new_row], ignore_index=True)
+
+        x_train, x_test, y_train, y_test = self.__get_train_data()
+        x_train_scaled, x_test_scaled = self.__scale_data(x_train, x_test)
+
+        model.fit(x_train_scaled, y_train)
+        self.test_model(model, x_test_scaled, y_test)
+        self.save_model(model, file_name)
+
+    def logistic_regression_fit(self):
+        """Метод-сборщик (Facade)"""
+        model = LogisticRegression(max_iter=1000)
+        # self.model = model
+        self.fit_model(file_name='logistic_regression_model', model=model)
+
+    def decision_tree_fit(self):
+        """Метод-сборщик (Facade)"""
+        model = DecisionTreeClassifier(
+            max_depth=5,
+            min_samples_split=20,
+            random_state=42
+        )
+        # self.model = model
+        self.fit_model(file_name='decision_tree_model', model=model)
+
+    def random_forest_fit(self):
+        """Метод-сборщик (Facade)"""
+        model = RandomForestClassifier(
+            n_estimators=200,  # достаточно деревьев
+            max_depth=15,  # ограничиваем глубину
+            min_samples_split=10,  # уменьшает переобучение
+            min_samples_leaf=4,  # сглаживание
+            max_features='sqrt',  # стандарт для регрессии
+            max_samples=0.8,  # используем 80% данных для каждого дерева
+            bootstrap=True,  # bootstrap выборки
+            oob_score=True,  # оценка на out-of-bag
+            random_state=42,  # воспроизводимость
+            n_jobs=-1  # все ядра
+        )
+        self.fit_model(file_name='random_forest_model', model=model)
+
+    def svm_fit(self):
+        """Метод-сборщик (Facade)"""
+        model = SVC(
+            kernel='rbf',
+            C=1.0,
+            probability=True,  # Чтобы можно было получить predict_proba
+            random_state=42
+        )
+        self.fit_model('svm_model', model=model)
+
+    def knn_fit(self):
+        """Метод-сборщик (Facade) для KNN"""
+        model = KNeighborsClassifier(
+            n_neighbors=5,  # количество соседей
+            weights='uniform',  # 'uniform' — все соседи равны, 'distance' — с весами
+            algorithm='auto',  # 'auto', 'ball_tree', 'kd_tree', 'brute'
+            leaf_size=30,  # параметр для BallTree/KDTree
+            p=2,  # 2 — евклидово, 1 — манхэттенское расстояние
+            metric='minkowski',  # метрика расстояния
+            n_jobs=-1  # используем все ядра
+        )
+        self.fit_model('knn_model', model=model)
+
+    def save_model(self, model, name:str, dont_rewrite=False):
+        """Сохраняет объект в models. По умолчанию объект берётся из self.
+        dont_rewrite = True - не даёт перезаписать объект"""
+        path = self._get_model_path(name)
+
+        if self.is_file_exist(path):
+            if dont_rewrite:
+                print("Объект уже существует")
+                return
+            message = "Объект перезаписан"
+        else:
+            message = "Объект сохранён"
+
+        joblib.dump(model, path)
+        print(message)
+
+    def load_model(self, name:str):
+        """Подгружает объект из папки models"""
+        path = self._get_model_path(name)
+        if self.is_file_exist(path):
+            return joblib.load(path)
+
+    def test_model(self, model, x_test_scaled, y_test):
+        """Тестирует модель. Вычисляет accuracy и ROC-AUC метрики"""
+        y_pred = model.predict(x_test_scaled)
+        y_proba = model.predict_proba(x_test_scaled)[:, 1]
+        accuracy = np.round(accuracy_score(y_test, y_pred), 3)
+        roc_auc = np.round(roc_auc_score(y_test, y_proba), 3)
+        self.metrics.loc[self.metrics["models"] == model, ['accuracy', 'ROC-AUC']] = [accuracy, roc_auc]
+
+
+    @staticmethod
+    def is_file_exist(file_path:str):
+        """Проверка существования файла"""
+        if os.path.exists(file_path):
+            return True
+        return False
+
+    @staticmethod
+    def _get_model_path(name):
+        """Выдаёт путь к файлу в папке models"""
+        return os.path.join(MODELS_DIR, f'{name}.pkl')
+
+    def __train_scaler(self, x_train):
+        """Обучает и сохраняет масштабатор"""
+        scaler = StandardScaler()
+        scaler.fit(x_train)
+
+        self.scaler = scaler
+        self.save_model(scaler, "scaler")
+
+    def __scale_data(self, x_train, x_test) -> tuple:
+        """Возвращает масштабированные данные для обучения и тестирования"""
+        if not self.scaler:
+            self.__train_scaler(x_train)
+        try:
+            x_train_scaled = self.scaler.transform(x_train)
+            x_test_scaled = self.scaler.transform(x_test)
+        except Exception as e:
+            raise Exception(f"Ошибка масштабирования данных. Ошибка: {e}")
+        return x_train_scaled, x_test_scaled
+
+    def __get_train_data(self, select_cols=None, mark:str = 'Churn') -> tuple:
+        """Возвращает данные для обучения и тестирования в формате: X_train, X_test, y_train, y_test"""
+        if not select_cols:
+            select_cols = ['tenure', 'MonthlyCharges', 'TotalCharges', 'Contract', 'InternetService']
+        try:
+            X = self.df_data[select_cols]
+            y = self.df_data[mark]
+            X = pd.get_dummies(X, dtype=int)
+            return train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        except Exception as e:
+            raise ValueError(f"Неверные исходные данные для обучения, ошибка: \n {e}")
+        except KeyError:
+            raise KeyError("Выбраны несуществующие столбцы или не выбраны вовсе")
+
+path_csv = "../data/Telco-Customer-Churn_clean.csv"
+
+pipeline = CreateFitModel(path_csv)
+pipeline.fit_all_models()
+
+print(pipeline.metrics.iloc[:, 1:])
