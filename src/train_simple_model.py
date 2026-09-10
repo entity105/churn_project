@@ -12,6 +12,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from xgboost import XGBClassifier
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, '..', 'models')
@@ -26,6 +28,7 @@ class CreateFitModel:
         self.scaler = self.load_model("scaler")
 
         self.metrics = pd.DataFrame(columns=['models', 'models_name', 'accuracy', 'ROC-AUC'])
+        self.train_test = self.__get_train_data()
 
     def fit_all_models(self, exclude=()):
         """Вызывает все методы, оканчивающиеся на '_fit' и не содержащиеся в exclude """
@@ -43,18 +46,18 @@ class CreateFitModel:
                 print(f"Ошибка в {method_name}: {e}")
                 raise
         print("Обучение завершено !")
-        self.save_model(self.metrics, "Метрики качества")
+        self.save_model(self.metrics.sort_values("accuracy", ascending=False), "Метрики качества")
 
     def __parse_data(self, *args, **kwargs):
         """Читает csv и сохраняет df"""
         return pd.read_csv(self.path, *args, **kwargs)
 
-    def fit_model(self, file_name:str, model):
+    def fit_model(self, file_name:str, name_model:str, model):
         """Обучение, тестирование и сохранение модели"""
-        new_row = pd.DataFrame([[model, file_name]], columns=['models', 'models_name'])
+        new_row = pd.DataFrame([[model, name_model]], columns=['models', 'models_name'])
         self.metrics = pd.concat([self.metrics, new_row], ignore_index=True)
 
-        x_train, x_test, y_train, y_test = self.__get_train_data()
+        x_train, x_test, y_train, y_test = self.train_test
         x_train_scaled, x_test_scaled = self.__scale_data(x_train, x_test)
 
         model.fit(x_train_scaled, y_train)
@@ -65,7 +68,7 @@ class CreateFitModel:
         """Метод-сборщик (Facade)"""
         model = LogisticRegression(max_iter=1000)
         # self.model = model
-        self.fit_model(file_name='logistic_regression_model', model=model)
+        self.fit_model(file_name='logistic_regression_model', name_model='Логистическая регрессия', model=model)
 
     def decision_tree_fit(self):
         """Метод-сборщик (Facade)"""
@@ -75,7 +78,7 @@ class CreateFitModel:
             random_state=42
         )
         # self.model = model
-        self.fit_model(file_name='decision_tree_model', model=model)
+        self.fit_model(file_name='decision_tree_model', name_model="Дерево решений" , model=model)
 
     def random_forest_fit(self):
         """Метод-сборщик (Facade)"""
@@ -91,7 +94,7 @@ class CreateFitModel:
             random_state=42,  # воспроизводимость
             n_jobs=-1  # все ядра
         )
-        self.fit_model(file_name='random_forest_model', model=model)
+        self.fit_model(file_name='random_forest_model', name_model="Случайный лес" , model=model)
 
     def svm_fit(self):
         """Метод-сборщик (Facade)"""
@@ -101,7 +104,7 @@ class CreateFitModel:
             probability=True,  # Чтобы можно было получить predict_proba
             random_state=42
         )
-        self.fit_model('svm_model', model=model)
+        self.fit_model('svm_model', name_model="SVM" , model=model)
 
     def knn_fit(self):
         """Метод-сборщик (Facade) для KNN"""
@@ -114,7 +117,39 @@ class CreateFitModel:
             metric='minkowski',  # метрика расстояния
             n_jobs=-1  # используем все ядра
         )
-        self.fit_model('knn_model', model=model)
+        self.fit_model('knn_model', name_model="KNN" , model=model)
+
+    def xgboost_fit(self):
+        """Метод-сборщик (Facade) для XGBoost"""
+        model = XGBClassifier(
+            n_estimators=200,  # количество деревьев
+            max_depth=5,  # глубина деревьев
+            learning_rate=0.1,  # шаг обучения
+            subsample=0.8,  # доля объектов для каждого дерева
+            colsample_bytree=0.8,  # доля признаков для каждого дерева
+            gamma=0.1,  # минимальное уменьшение потерь для разбиения
+            reg_alpha=0.1,  # L1-регуляризация
+            reg_lambda=1.0,  # L2-регуляризация
+            eval_metric='logloss',  # метрика для оценки
+            random_state=42,
+            n_jobs=-1  # все ядра
+        )
+        self.fit_model(
+            file_name='xgboost_model',
+            name_model='XGBoost',
+            model=model
+        )
+
+    def naive_bayes_fit(self):
+        """Метод-сборщик (Facade) для Gaussian Naive Bayes"""
+        model = GaussianNB(
+            var_smoothing=1e-9  # сглаживание для стабильности
+        )
+        self.fit_model(
+            file_name='naive_bayes_model',
+            name_model='Наивный Байес',
+            model=model
+        )
 
     def save_model(self, model, name:str, dont_rewrite=False):
         """Сохраняет объект в models. По умолчанию объект берётся из self.
@@ -145,7 +180,6 @@ class CreateFitModel:
         accuracy = np.round(accuracy_score(y_test, y_pred), 3)
         roc_auc = np.round(roc_auc_score(y_test, y_proba), 3)
         self.metrics.loc[self.metrics["models"] == model, ['accuracy', 'ROC-AUC']] = [accuracy, roc_auc]
-
 
     @staticmethod
     def is_file_exist(file_path:str):

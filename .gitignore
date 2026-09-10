@@ -1,1 +1,12 @@
 src/setting.py
+Tasks.txt
+models/decision_tree_model.pkl
+models/knn_model.pkl
+models/logistic_regression_model.pkl
+models/naive_bayes_model.pkl
+models/random_forest_model.pkl
+models/scaler.pkl
+models/svm_model.pkl
+models/xgboost_model.pkl
+models/Метрики качества.pkl
+.idea/workspace.xml

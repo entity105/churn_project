@@ -14,7 +14,9 @@ d = {
         'decision_tree_model.pkl' : 'Дерево решений',
         'knn_model.pkl' : 'KNN',
         'random_forest_model.pkl' : 'Случайный лес',
-        'svm_model.pkl' : 'SVM'
+        'svm_model.pkl' : 'SVM',
+        'naive_bayes_model.pkl' : 'Наивный Байес',
+        'xgboost_model.pkl' : 'XGBoost'
     }
 
 def get_name_model(file_model):
@@ -71,53 +73,54 @@ total_charges = tenure * monthly_charges
 
 col_1, col_2 = st.columns(3)[:2]
 with col_1:
-    if st.button("🔮 Предсказать отток"):
-        # Создаём DataFrame с одним клиентом
-        input_data = pd.DataFrame([{
-            'tenure': tenure,
-            'MonthlyCharges': monthly_charges,
-            'TotalCharges': total_charges,
-            'Contract': contract,
-            'InternetService': internet_service
-        }])
+    button = st.button("🔮 Предсказать отток")
 
-        # One-Hot Encoding
-        input_encoded = pd.get_dummies(input_data, dtype=int)
+if button:
+    # Создаём DataFrame с одним клиентом
+    input_data = pd.DataFrame([{
+        'tenure': tenure,
+        'MonthlyCharges': monthly_charges,
+        'TotalCharges': total_charges,
+        'Contract': contract,
+        'InternetService': internet_service
+    }])
 
-        # Жёстко задаём правильный порядок колонок (такой же, как при обучении)
-        expected_columns = [
-            'tenure',
-            'MonthlyCharges',
-            'TotalCharges',
-            'Contract_Month-to-month',
-            'Contract_One year',
-            'Contract_Two year',
-            'InternetService_DSL',
-            'InternetService_Fiber optic',
-            'InternetService_No'
-        ]
+    # One-Hot Encoding
+    input_encoded = pd.get_dummies(input_data, dtype=int)
 
-        # Добавляем отсутствующие колонки
-        for col in expected_columns:
-            if col not in input_encoded.columns:
-                input_encoded[col] = 0
+    # Жёстко задаём правильный порядок колонок (такой же, как при обучении)
+    expected_columns = [
+        'tenure',
+        'MonthlyCharges',
+        'TotalCharges',
+        'Contract_Month-to-month',
+        'Contract_One year',
+        'Contract_Two year',
+        'InternetService_DSL',
+        'InternetService_Fiber optic',
+        'InternetService_No'
+    ]
 
-        input_encoded = input_encoded[expected_columns]
+    # Добавляем отсутствующие колонки
+    for col in expected_columns:
+        if col not in input_encoded.columns:
+            input_encoded[col] = 0
 
-        # Масштабируем
-        input_scaled = scaler.transform(input_encoded)
+    input_encoded = input_encoded[expected_columns]
 
-        # Предсказываем
-        proba = selected_model.predict_proba(input_scaled)[0][1]
+    # Масштабируем
+    input_scaled = scaler.transform(input_encoded)
 
-        if proba > 0.5:
-            st.error(f"⚠️ Клиент **уйдёт** с вероятностью {proba:.1%}")
-            st.info("Рекомендация: предложить скидку или улучшить обслуживание")
-        else:
-            st.success(f"✅ Клиент **останется** с вероятностью {(1 - proba):.1%}")
+    # Предсказываем
+    proba = selected_model.predict_proba(input_scaled)[0][1]
+    if proba > 0.5:
+        st.error(f"⚠️ Клиент **уйдёт** с вероятностью {proba:.1%}")
+        st.info("Рекомендация: предложить скидку или улучшить обслуживание")
+    else:
+        st.success(f"✅ Клиент **останется** с вероятностью {(1 - proba):.1%}")
 
 with col_2:
-    st.text(f"Текущая модель: {selected_model}")
+    st.text(f"Текущая модель: {selected_model_name}")
 
 # Минимальный рабочий код с переключением
 if 'show' not in st.session_state:
