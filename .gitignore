@@ -10,3 +10,5 @@ models/svm_model.pkl
 models/xgboost_model.pkl
 models/Метрики качества.pkl
 .idea/workspace.xml
+/.idea
+*.pyc
