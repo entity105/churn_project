@@ -42,7 +42,7 @@ feature_names = X_train.columns
 # Получаем коэффициенты модели
 coefficients = model.coef_[0]
 
-# Сортируем и выводим топ-5 самых влиятельных признаков
+# топ-5 самых влиятельных признаков
 coeff_df = pd.DataFrame({'feature': feature_names, 'coef': coefficients})
 coeff_df['abs_coef'] = coeff_df['coef'].abs()
 coeff_df = coeff_df.sort_values('abs_coef', ascending=False)
@@ -50,6 +50,7 @@ coeff_df = coeff_df.sort_values('abs_coef', ascending=False)
 print("\n=== Top 5 most important features for churn prediction ===")
 print(coeff_df.head(5))
 
+print(list(coeff_df["feature"][:5]))
 # import joblib
 #
 # # Сохраняем модель и scaler

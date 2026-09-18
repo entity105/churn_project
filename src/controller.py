@@ -10,11 +10,8 @@ class Controller:
         self.view.setup_page()
 
         models_name = self.model.get_models_name()
-        retrain, selected_model = self.view.sidebar_settings(models_name)
-        data = self.view.input_form()
-
-        if retrain:
-            pass
+        selected_model_name = self.view.sidebar_settings(models_name)
+        data = self.view.input_form(selected_model_name)
 
         if data["button"]:
             input_data = {
@@ -22,9 +19,9 @@ class Controller:
                 "MonthlyCharges": data["MonthlyCharges"],
                 "TotalCharges": data["TotalCharges"],
                 "Contract": data["Contract"],
-                "InternetService": data["InternetService"],
+                "InternetService": data["InternetService"]
             }
-            proba = self.model.predict(selected_model, input_data)
+            proba = self.model.predict(selected_model_name, input_data)
             self.view.show_result(proba)
 
         self.view.show_metrics_toggle(self.model.get_metrics())

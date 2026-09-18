@@ -14,6 +14,18 @@ MODEL_NAMES = {
         'xgboost_model.pkl' : 'XGBoost'
     }
 
+EXPECTED_COLUMNS = [
+    'tenure',
+    'MonthlyCharges',
+    'TotalCharges',
+    'Contract_Month-to-month',
+    'Contract_One year',
+    'Contract_Two year',
+    'InternetService_DSL',
+    'InternetService_Fiber optic',
+    'InternetService_No'
+]
+
 
 class Model:
     """Загрузка моделей, масштабирование и предсказание"""
@@ -49,25 +61,12 @@ class Model:
         # One-Hot Encoding
         input_encoded = pd.get_dummies(input_data, dtype=int)
 
-        # Жёстко задаём правильный порядок колонок (такой же, как при обучении)
-        expected_columns = [
-            'tenure',
-            'MonthlyCharges',
-            'TotalCharges',
-            'Contract_Month-to-month',
-            'Contract_One year',
-            'Contract_Two year',
-            'InternetService_DSL',
-            'InternetService_Fiber optic',
-            'InternetService_No'
-        ]
-
         # Добавляем отсутствующие колонки
-        for col in expected_columns:
+        for col in EXPECTED_COLUMNS:
             if col not in input_encoded.columns:
                 input_encoded[col] = 0
 
-        input_encoded = input_encoded[expected_columns]
+        input_encoded = input_encoded[EXPECTED_COLUMNS]
 
         # Масштабируем
         input_scaled = self.scaler.transform(input_encoded)

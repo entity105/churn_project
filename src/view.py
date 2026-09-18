@@ -11,15 +11,15 @@ class View:
         st.write("Введите данные о клиенте и узнайте, уйдёт он или останется")
 
     @staticmethod
-    def sidebar_settings(model_names: list) -> tuple:
+    def sidebar_settings(model_names: list) -> str:
         with st.sidebar:
             st.header("Настройки")
-            retrain = st.button("Переобучить модель")
-            selected_model = st.selectbox("Выберите модель", model_names, index=0)
-        return retrain, selected_model
+            # retrain = st.button("Переобучить модель")
+            selected_model = st.selectbox("Выберите модель", model_names, index=2)
+        return selected_model
 
     @staticmethod
-    def input_form() -> dict:
+    def input_form(current_model_name : str) -> dict:
         # Ввод данных
 
         left_col, right_col = st.columns(2)
@@ -32,6 +32,7 @@ class View:
         total_charges = tenure * monthly_charges
 
         button = st.button("Предсказать отток")
+        st.text(f"Текущая модель: {current_model_name}")
 
         return {
             "tenure": tenure,
