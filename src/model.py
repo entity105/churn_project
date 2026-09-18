@@ -32,6 +32,7 @@ class Model:
 
     def __init__(self, models_dir : str = MODELS_DIR):
         self.models_dir = models_dir
+        self.df_data = None
 
         self.scaler = None
         self.metrics = None
@@ -39,7 +40,15 @@ class Model:
 
         self.__load_all()
 
+    @staticmethod
+    def get_path_to_data(file_name : str = 'Telco-Customer-Churn_clean.csv'):
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(BASE_DIR, '..', 'data', file_name)
+
     def __load_all(self):
+        if len(os.listdir(self.models_dir)) == 0:
+            self.train_models()
+
         self.scaler = joblib.load(os.path.join(self.models_dir, "scaler.pkl"))
         self.metrics = joblib.load(os.path.join(self.models_dir, "Метрики качества.pkl"))
 
@@ -54,7 +63,7 @@ class Model:
     def get_metrics(self) -> pd.DataFrame:
         return self.metrics
 
-    def predict(self, model_name:str, input_data:dict):
+    def predict(self, model_name: str, input_data: dict):
         input_data = pd.DataFrame([input_data])
         model = self.models[model_name]
 
@@ -73,3 +82,15 @@ class Model:
 
         # Предсказываем
         return model.predict_proba(input_scaled)[0][1]
+
+    def load_data(self) -> pd.DataFrame:
+        """Загружает исходный датасет (один раз, кэшируется)"""
+        if self.df_data is None:
+            self.df_data = pd.read_csv(self.get_path_to_data('Telco-Customer-Churn.csv'))
+        return self.df_data
+
+    def train_models(self):
+        from src.train_simple_model import CreateFitModel
+        path_csv = self.get_path_to_data('Telco-Customer-Churn_clean.csv')
+        pipeline = CreateFitModel(path_csv)
+        pipeline.fit_all_models()

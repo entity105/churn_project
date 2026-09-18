@@ -15,11 +15,11 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from xgboost import XGBClassifier
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODELS_DIR = os.path.join(BASE_DIR, '..', 'models')
 
 class CreateFitModel:
-    """Создаёт, обучает, сохраняет модель. На вход подаётся путь к файлу с данными"""
+    """Создаёт, обучает, сохраняет модель. На вход подаётся путь к очищенному файлу с данными"""
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODELS_DIR = os.path.join(BASE_DIR, '..', 'models')
 
     def __init__(self, path_to_csv:str):
         self.path = path_to_csv
@@ -188,10 +188,9 @@ class CreateFitModel:
             return True
         return False
 
-    @staticmethod
-    def _get_model_path(name):
+    def _get_model_path(self, name):
         """Выдаёт путь к файлу в папке models"""
-        return os.path.join(MODELS_DIR, f'{name}.pkl')
+        return os.path.join(self.MODELS_DIR, f'{name}.pkl')
 
     def __train_scaler(self, x_train):
         """Обучает и сохраняет масштабатор"""
@@ -226,9 +225,10 @@ class CreateFitModel:
         except KeyError:
             raise KeyError("Выбраны несуществующие столбцы или не выбраны вовсе")
 
-path_csv = "../data/Telco-Customer-Churn_clean.csv"
 
-pipeline = CreateFitModel(path_csv)
-pipeline.fit_all_models()
-
-print(pipeline.metrics.iloc[:, 1:])
+if __name__ == "__main__":
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    path_csv = os.path.join(BASE_DIR, '..', 'data', 'Telco-Customer-Churn_clean.csv')
+    pipeline = CreateFitModel(path_csv)
+    pipeline.fit_all_models()
+    print(pipeline.metrics.iloc[:, 1:])

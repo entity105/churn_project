@@ -3,8 +3,8 @@ from src.view import View
 
 class Controller:
     def __init__(self):
-        self.model = Model()
         self.view = View()
+        self.model = Model()
 
     def run(self):
         self.view.setup_page()
@@ -12,6 +12,7 @@ class Controller:
         models_name = self.model.get_models_name()
         selected_model_name = self.view.sidebar_settings(models_name)
         data = self.view.input_form(selected_model_name)
+        # self.view.download_data()
 
         if data["button"]:
             input_data = {
@@ -25,3 +26,8 @@ class Controller:
             self.view.show_result(proba)
 
         self.view.show_metrics_toggle(self.model.get_metrics())
+
+        # Кнопка "Показать данные"
+        if self.view.show_data_button():
+            df = self.model.load_data()
+            self.view.show_dataframe(df)

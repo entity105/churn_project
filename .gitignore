@@ -12,3 +12,4 @@ models/Метрики качества.pkl
 .idea/workspace.xml
 /.idea
 *.pyc
+src/__pycache__/view.cpython-313.pyc.2557651646512

@@ -56,8 +56,32 @@ class View:
         if 'show' not in st.session_state:
             st.session_state.show = False
 
-        if st.button("📈 Показать/Скрыть метрики"):
+        if st.button("Показать/Скрыть метрики"):
             st.session_state.show = not st.session_state.show
 
         if st.session_state.show:
             st.dataframe(metrics.iloc[:, 1:])
+
+    # @staticmethod
+    # def download_data():
+    #     DATA_PATH = "../data/Telco-Customer-Churn_clean.csv"
+    #     df = pd.read_csv(DATA_PATH)
+    #     df.to_excel("temp.xlsx", index=False)
+    #     with open("temp.xlsx", "rb") as f:
+    #         st.download_button(
+    #             label="Скачать Excel",
+    #             data=f,
+    #             file_name="telco_churn.xlsx",
+    #             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    #         )
+
+    @staticmethod
+    def show_data_button() -> bool:
+        """Кнопка 'Показать исходные данные'"""
+        return st.button("Показать исходные данные", key="show_data_button")
+
+    @staticmethod
+    def show_dataframe(df: pd.DataFrame):
+        """Отображает DataFrame"""
+        st.subheader("📋 Исходные данные")
+        st.dataframe(df)
